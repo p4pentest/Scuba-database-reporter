@@ -1,0 +1,51 @@
+#!/bin/bash
+sr=0
+rm -rf output
+echo "Sr. No. ;""IP Address ;""Type of Vulnerability;""Severity;""Description;""Business Impact ;""Recommendation" > output
+ls -l | grep -Po "\d+\.\d+\.\d+\.\d+\.xml" > all
+n_all=`cat all | wc -l | cut -d" " -f1`
+for (( i=1 ; i <= $n_all ; i++ ))
+do
+	file=`sed -n ''$i'p' all`
+	ip=`echo $file | awk -F ".xml" '{print $1}'`
+	rm -rf vulnerability
+	rm -rf severity
+	rm -rf description
+	rm -rf impact
+	rm -rf recommendation
+	rm -rf line_number
+	cat $file | grep 'failed="true"' | cut -d '"' -f6 > vulnerability
+	cat $file | grep 'failed="true"' | cut -d '"' -f8 > severity
+	awk '/failed="true"/{getline; print}' $file | cut -d " " -f3- | cut -d"<" -f1 > description
+	grep 'failed="true"' --line-number $file | cut -d ":" -f1 > line_number
+        l=`wc -l line_number | cut -d" " -f1`
+	for (( k=1; k <= $l ; k++ ))
+	do	
+		a=`cat line_number | sed -n ''$k'p'`
+		cat $file | sed -n $(( $a + 5 ))p | cut -d ">" -f2 | cut -d "<" -f1 >> impact
+		rec=`cat $file| sed -n $(( $a + 6 ))p | cut -d">" -f2 | cut -d"<" -f1 | grep "&#" | wc -l | cut -d" " -f1`
+		if [ $rec == 1 ]
+		then
+			cat $file| sed -n $(( $a + 6 ))p | cut -d">" -f2 | cut -d"<" -f1 | html2text >> recommendation
+		else
+			cat $file| sed -n $(( $a + 6 ))p | cut -d">" -f2 | cut -d"<" -f1 >> recommendation
+		fi
+	done
+	c=`wc -l vulnerability | cut -d" " -f1`
+	for (( j=1 ; j <= $c ; j++ ))
+	do
+		sr=$[ $sr + 1 ]
+		v=`sed -n ''$j'p' vulnerability`
+		s=`sed -n ''$j'p' severity`
+		d=`sed -n ''$j'p' description`
+		im=`sed -n ''$j'p' impact`
+		r=`sed -n ''$j'p' recommendation`
+		echo "$sr;$ip;$v;$s;$d;$im;$r" >> output
+	done
+done
+rm -rf vulnerability
+rm -rf severity
+rm -rf description
+rm -rf impact
+rm -rf recommendation
+rm -rf line_number
